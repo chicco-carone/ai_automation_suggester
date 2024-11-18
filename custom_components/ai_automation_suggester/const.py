@@ -45,6 +45,11 @@ CONF_CUSTOM_OPENAI_ENDPOINT = "custom_openai_endpoint"
 CONF_CUSTOM_OPENAI_API_KEY = "custom_openai_api_key"
 CONF_CUSTOM_OPENAI_MODEL = "custom_openai_model"
 
+# GitHub specific
+CONF_GITHUB_API_KEY = "github_api_key"
+CONF_GITHUB_MODEL = "github_model"
+CONF_GITHUB_ENDPOINT = "github_endpoint"
+
 # Model Defaults
 DEFAULT_MODELS = {
     "OpenAI": "gpt-4o-mini",
@@ -53,7 +58,8 @@ DEFAULT_MODELS = {
     "Groq": "llama3-8b-8192",
     "LocalAI": "llama3",
     "Ollama": "llama2",
-    "Custom OpenAI": "gpt-3.5-turbo"
+    "Custom OpenAI": "gpt-3.5-turbo",
+    "GitHub": "gpt-4o-mini"
 }
 
 # Error Messages
@@ -98,3 +104,4 @@ ENDPOINT_GOOGLE = "https://generativelanguage.googleapis.com/v1beta2/models/{mod
 ENDPOINT_GROQ = "https://api.groq.com/openai/v1/chat/completions"
 ENDPOINT_LOCALAI = "{protocol}://{ip_address}:{port}/v1/chat/completions"
 ENDPOINT_OLLAMA = "{protocol}://{ip_address}:{port}/api/chat"
+ENDPOINT_GITHUB = "https://models.inference.ai.azure.com"

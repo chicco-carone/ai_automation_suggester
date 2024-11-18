@@ -36,6 +36,9 @@ from .const import (
     CONF_CUSTOM_OPENAI_MODEL,
     DEFAULT_MODELS,
     VERSION_ANTHROPIC,
+    CONF_GITHUB_API_KEY,
+    CONF_GITHUB_MODEL,
+    CONF_GITHUB_ENDPOINT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -252,6 +255,33 @@ class ProviderValidator:
             _LOGGER.error(f"Custom OpenAI validation exception: {err}")
             return str(err)
 
+    async def validate_github(self, api_key: str) -> Optional[str]:
+        """Validate GitHub configuration."""
+        headers = {
+            'Authorization': f"Bearer {api_key}",
+            'Content-Type': 'application/json',
+        }
+        try:
+            _LOGGER.debug("Validating GitHub API key")
+            response = await self.session.get(
+                "https://api.github.com/user",
+                headers=headers
+            )
+            if response.status == 200:
+                return None  # Success
+            else:
+                error_text = await response.text()
+                _LOGGER.error(f"GitHub validation error response: {error_text}")
+                try:
+                    error_json = await response.json()
+                    error_message = error_json.get("message", error_text)
+                except Exception:
+                    error_message = error_text
+                return error_message
+        except Exception as err:
+            _LOGGER.error(f"GitHub validation exception: {err}")
+            return str(err)
+
 
 class AIAutomationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for AI Automation Suggester."""
@@ -295,10 +325,11 @@ class AIAutomationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     "LocalAI": self.async_step_localai,
                     "Ollama": self.async_step_ollama,
                     "Custom OpenAI": self.async_step_custom_openai,
+                    "GitHub": self.async_step_github,
                 }
                 return await provider_steps[self.provider]()
 
-        providers = ["OpenAI", "Anthropic", "Google", "Groq", "LocalAI", "Ollama", "Custom OpenAI"]
+        providers = ["OpenAI", "Anthropic", "Google", "Groq", "LocalAI", "Ollama", "Custom OpenAI", "GitHub"]
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
@@ -562,6 +593,38 @@ class AIAutomationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders=description_placeholders
         )
 
+    async def async_step_github(self, user_input: Optional[Dict[str, Any]] = None):
+        """Configure GitHub settings."""
+        errors = {}
+        description_placeholders = {}
+
+        if user_input is not None:
+            self.validator = ProviderValidator(self.hass)
+            error_message = await self.validator.validate_github(user_input[CONF_GITHUB_API_KEY])
+
+            if error_message is None:
+                self.data.update(user_input)
+                return self.async_create_entry(
+                    title="AI Automation Suggester (GitHub)",
+                    data=self.data
+                )
+            else:
+                errors["base"] = "api_error"
+                description_placeholders["error_message"] = error_message
+
+        return self.async_show_form(
+            step_id="github",
+            data_schema=vol.Schema({
+                vol.Required(CONF_GITHUB_API_KEY): str,
+                vol.Optional(CONF_GITHUB_MODEL, default=DEFAULT_MODELS["GitHub"]): str,
+                vol.Optional(CONF_GITHUB_ENDPOINT, default="https://models.inference.ai.azure.com"): str,
+                vol.Optional(CONF_MAX_TOKENS, default=DEFAULT_MAX_TOKENS): vol.All(
+                    vol.Coerce(int), vol.Range(min=100)
+                ),
+            }),
+            errors=errors,
+            description_placeholders=description_placeholders
+        )
 
 
 class AIAutomationOptionsFlowHandler(config_entries.OptionsFlow):
@@ -628,6 +691,13 @@ class AIAutomationOptionsFlowHandler(config_entries.OptionsFlow):
                 CONF_CUSTOM_OPENAI_MODEL,
                 default=self.config_entry.data.get(CONF_CUSTOM_OPENAI_MODEL, DEFAULT_MODELS["Custom OpenAI"])
             )] = str
+        elif provider == "GitHub":
+            options[vol.Optional(CONF_GITHUB_API_KEY)] = str
+            options[vol.Optional(
+                CONF_GITHUB_MODEL,
+                default=self.config_entry.data.get(CONF_GITHUB_MODEL, DEFAULT_MODELS["GitHub"])
+            )] = str
+            options[vol.Optional(CONF_GITHUB_ENDPOINT)] = str
 
         return self.async_show_form(
             step_id="init",
