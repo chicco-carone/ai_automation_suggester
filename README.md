@@ -181,6 +181,7 @@ If you prefer to install the integration manually, follow these steps:
 - **Google**: Get an API key from the [Google Cloud Console](https://console.cloud.google.com/).
 - **Groq**: Register and obtain an API key from [Groq](https://groq.com/).
 - **LocalAI/Ollama**: Set up the respective servers on your local network.
+- **GitHub**: Obtain a GitHub token by following the instructions [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).
 
 ---
 

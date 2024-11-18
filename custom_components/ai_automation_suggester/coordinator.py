@@ -34,6 +34,9 @@ from .const import (
     CONF_CUSTOM_OPENAI_ENDPOINT,
     CONF_CUSTOM_OPENAI_API_KEY,
     CONF_CUSTOM_OPENAI_MODEL,
+    CONF_GITHUB_API_KEY,
+    CONF_GITHUB_MODEL,
+    CONF_GITHUB_ENDPOINT,
     DEFAULT_MAX_TOKENS,
     DEFAULT_TEMPERATURE,
     VERSION_ANTHROPIC,
@@ -247,6 +250,8 @@ class AIAutomationCoordinator(DataUpdateCoordinator):
                 return await self.process_with_ollama(prompt)
             elif provider == "Custom OpenAI":
                 return await self.process_with_custom_openai(prompt)
+            elif provider == "GitHub":
+                return await self.process_with_github(prompt)
             else:
                 _LOGGER.error("Unknown provider: %s", provider)
                 return None
@@ -590,4 +595,49 @@ class AIAutomationCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             _LOGGER.error("Error processing with Custom OpenAI: %s", err)
+            return None
+
+    async def process_with_github(self, prompt):
+        """Process the prompt with GitHub."""
+        try:
+            api_key = self.entry.data.get(CONF_GITHUB_API_KEY)
+            model = self.entry.data.get(CONF_GITHUB_MODEL, DEFAULT_MODELS["GitHub"])
+            endpoint = self.entry.data.get(CONF_GITHUB_ENDPOINT, "https://models.inference.ai.azure.com")
+            max_tokens = self.entry.data.get(CONF_MAX_TOKENS, DEFAULT_MAX_TOKENS)
+            
+            if not api_key:
+                raise ValueError("GitHub API key not configured")
+
+            _LOGGER.debug("Making GitHub API request with model %s and max_tokens %d", 
+                        model, max_tokens)
+            
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+            
+            data = {
+                "model": model,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": max_tokens,
+                "temperature": DEFAULT_TEMPERATURE
+            }
+            
+            async with self.session.post(
+                endpoint,
+                headers=headers,
+                json=data
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    _LOGGER.error("GitHub API error: %s", error_text)
+                    return None
+                    
+                result = await response.json()
+                return result["choices"][0]["message"]["content"]
+
+        except Exception as err:
+            _LOGGER.error("Error processing with GitHub: %s", err)
             return None
